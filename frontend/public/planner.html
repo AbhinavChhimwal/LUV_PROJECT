@@ -6,35 +6,26 @@
     <title>AI Syllabus Planner | Faculty Portal</title>
     <link rel="stylesheet" href="css/style.css">
     <style>
-        /* --- Font sizes badhane ke liye naya CSS --- */
-        body { font-size: 16px; }
-        .input-box, button { font-size: 16px !important; }
-        
         .ai-header { 
-            background: var(--primary-grad); color: white; padding: 25px; 
+            background: var(--primary-grad); color: white; padding: 20px; 
             border-radius: 8px; margin-bottom: 25px; text-align: center; 
         }
-        /* Heading aur text ko bada kiya */
-        .ai-header h2 { font-size: 32px; margin-bottom: 10px; } 
-        .ai-header p { font-size: 18px; } 
-        
-        #loader { display: none; text-align: center; padding: 20px; font-weight: bold; color: #6a11cb; font-size: 18px; }
+        #loader { display: none; text-align: center; padding: 20px; font-weight: bold; color: #6a11cb; }
         .spinner { 
             border: 4px solid #f3f3f3; border-top: 4px solid #6a11cb; border-radius: 50%; 
             width: 30px; height: 30px; animation: spin 1s linear infinite; display: inline-block; 
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        .planner-controls { background: var(--bg-secondary); padding: 25px; border-radius: 12px; box-shadow: var(--card-shadow); margin-bottom: 20px; }
-        .planner-controls label, .planner-controls p { font-size: 18px; }
-        
-        .data-table th, .data-table td { font-size: 16px; padding: 18px; }
+        .planner-controls { background: var(--bg-secondary); padding: 20px; border-radius: 12px; box-shadow: var(--card-shadow); margin-bottom: 20px; }
         .row-done { background-color: #d4edda !important; }
         .text-done { text-decoration: line-through; color: #6c757d; }
     </style>
 </head>
-<body style="background: #f4f7f6;">
-    
+<body>
+
+    <button id="themeToggle" class="theme-toggle">🌙</button>
+
     <nav class="navbar">
         <div style="display: flex; align-items: center; gap: 15px;">
             <button class="secondary-btn" onclick="window.location.href='dashboard.html'">← Back</button>
@@ -44,24 +35,24 @@
     
     <div class="container">
         <div class="ai-header">
-            <h2 id="mainHeading">⚡ Loading Planner...</h2>
-            <p>Make plan for upcoming semester | Subject: <span id="subjectLabel" style="font-weight:bold; color: #ffeb3b;">Loading...</span></p>
+            <h2>⚡ AI Smart Tracker</h2>
+            <p>Subject: <span id="subjectLabel" style="font-weight:bold;">Loading...</span></p>
         </div>
 
         <div class="planner-controls">
             <label><strong>Syllabus Goals / Extract from PDF:</strong></label>
-            <textarea id="promptInput" class="input-box" style="height: 100px; margin-top: 10px;" placeholder="Describe how you want to divide the topics..."></textarea>
+            <textarea id="promptInput" class="input-box" style="height: 100px;" placeholder="Describe how you want to divide the topics..."></textarea>
             
-            <p style="margin: 15px 0;">Plan for: <strong id="daysDisplay" style="color: #6a11cb;">--</strong> Days</p>
+            <p style="margin: 10px 0;">Plan for: <strong id="daysDisplay">--</strong> Days</p>
             <button class="primary-btn" id="genBtn" onclick="generateSyllabus()">✨ Generate & Save Plan</button>
         </div>
 
         <div id="loader">
-            <div class="spinner"></div><br><br>
-            ⏳ AI is organizing your syllabus into the database... Please wait.
+            <div class="spinner"></div><br>
+            AI is organizing your syllabus into the database...
         </div>
 
-        <table class="data-table" id="resultTable" style="display: none; background: white;">
+        <table class="data-table" id="resultTable" style="display: none;">
             <thead>
                 <tr>
                     <th style="width: 10%; text-align: center;">Done</th>
@@ -76,22 +67,28 @@
 
     <script src="js/api.js"></script>
     <script>
+        
         const urlParams = new URLSearchParams(window.location.search);
-        const classId = urlParams.get('class'); 
+        const classId = urlParams.get('class'); // Backend route matches 'classId'
+
         let classData = null;
 
-        // Page load hone par
+        // 1. Page Load par existing data fetch karo
         window.onload = async () => {
+            if (!classId) return window.location.href = 'dashboard.html';
+            
             const res = await api.get(`/planner/${classId}`);
             if (res.success) {
-                classData = res; // AI generation ke liye data zaroori hai
-                
-                // Naya update: Dono jagah dynamically Subject Name dikhega
-                document.getElementById('mainHeading').innerText = "⚡ " + res.subject + " Planner"; 
-                document.getElementById('subjectLabel').innerText = res.subject; 
+                classData = res;
+                document.getElementById('subjectLabel').innerText = res.num_days + " Days Plan";
                 document.getElementById('daysDisplay').innerText = res.num_days;
                 
-                if(res.plan && res.plan.length > 0) renderTable(res.plan);
+                if (res.items && res.items.length > 0) {
+                    renderTable(res.items);
+                }
+            } else {
+                alert("Session expired. Please login again.");
+                window.location.href = 'index.html';
             }
         };
 
@@ -101,17 +98,17 @@
             tbody.innerHTML = '';
             table.style.display = 'table';
 
-            items.forEach((item) => {
+            items.forEach((item, i) => {
                 const row = document.createElement('tr');
                 if (item.is_done) row.className = 'row-done';
 
                 row.innerHTML = `
                     <td style="text-align: center;">
-                        <input type="checkbox" style="width: 20px; height: 20px;" ${item.is_done ? 'checked' : ''} onchange="toggleDay(${item.day_no})">
+                        <input type="checkbox" ${item.is_done ? 'checked' : ''} onchange="toggleDay(${item.day_no})">
                     </td>
                     <td><strong>Day ${item.day_no}</strong></td>
                     <td>
-                        <input type="text" id="topic_${item.day_no}" class="input-box ${item.is_done ? 'text-done' : ''}" value="${item.topic}" style="margin: 0;">
+                        <input type="text" id="topic_${item.day_no}" class="edit-input ${item.is_done ? 'text-done' : ''}" value="${item.topic}">
                     </td>
                     <td>
                         <button class="success-btn" onclick="updateTopic(${item.day_no})">Save</button>
@@ -130,12 +127,13 @@
             genBtn.disabled = true;
 
             try {
-                // Backend se key lena
+                // 1. NAYA STEP: Apne backend se securely API Key mango
                 const keyRes = await api.get('/get-ai-key');
                 const SECURE_GROQ_KEY = keyRes.key;
 
                 if (!SECURE_GROQ_KEY) throw new Error("API Key backend mein nahi mili!");
 
+                // 2. Ab AI ko call karo (SECURE_GROQ_KEY use karke)
                 const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                     method: "POST",
                     headers: { "Authorization": `Bearer ${SECURE_GROQ_KEY}`, "Content-Type": "application/json" },
@@ -160,6 +158,7 @@
                 }
 
                 const topicsArray = JSON.parse(jsonMatch[0]);
+
                 const itemsToSave = topicsArray.map((topic, i) => ({
                     day_no: i + 1,
                     topic: topic,
@@ -189,6 +188,19 @@
             const newTopic = document.getElementById(`topic_${dayNo}`).value;
             const res = await api.patch(`/planner/${classId}/update/${dayNo}`, { topic: newTopic });
             if (res.success) alert("Topic Updated!");
+        }
+
+        // Theme Toggle Logic
+        const themeBtn = document.getElementById('themeToggle');
+        themeBtn.onclick = () => {
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+            themeBtn.innerText = isDark ? '🌙' : '☀️';
+        };
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.setAttribute('data-theme', 'dark');
+            themeBtn.innerText = '☀️';
         }
     </script>
 </body>
