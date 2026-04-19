@@ -2,11 +2,10 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure data directory exists
-const dataDir = path.join(__dirname, '../data');
+// Render pe persistent disk path, warna local data folder
+const dataDir = process.env.DATA_DIR || path.join(__dirname, '../data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-// Open the built-in Node 22 SQLite database (NO external packages needed!)
 const db = new DatabaseSync(path.join(dataDir, 'faculty.db'));
 
 // Enable WAL mode for better performance
@@ -62,7 +61,7 @@ db.exec(`
   );
 `);
 
-// Custom transaction wrapper so old routes work perfectly
+// Custom transaction wrapper
 db.transaction = (fn) => {
   return (...args) => {
     db.exec('BEGIN');
@@ -78,5 +77,6 @@ db.transaction = (fn) => {
 };
 
 console.log("✔ Database (Node 22 Built-in SQLite) Ready!");
+console.log("📂 DB Location:", path.join(dataDir, 'faculty.db'));
 
 module.exports = db;

@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: faculty-portal
+    env: node
+    region: singapore  # India ke paas
+
+    # Root directory jahan server.js hai
+    rootDir: backened
+
+    # Node 22 use karne ke liye (node:sqlite built-in ke liye zaroori)
+    buildCommand: npm install
+    startCommand: node server.js
+
+    envVars:
+      - key: NODE_VERSION
+        value: 22.0.0
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true   # Render automatically secure value banayega
+      - key: SESSION_SECRET
+        generateValue: true
+      # GROQ_API_KEY aur DATA_DIR Render dashboard mein manually set karo
+      # DATA_DIR = /opt/render/project/src/data
+
+    # Disk mount karo taaki SQLite data save rahe
+    disk:
+      name: faculty-db
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
